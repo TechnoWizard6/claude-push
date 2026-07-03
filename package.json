@@ -1,0 +1,19 @@
+{
+  "name": "leads-track",
+  "version": "0.1.0",
+  "description": "Real-time real estate lead engagement tracking and AI buyer-intent scoring (PropFocus-style)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node src/seed.js",
+    "simulate": "node src/simulate.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

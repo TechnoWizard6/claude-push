@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads-Track — Sales Dashboard</title>
+<style>
+  :root {
+    --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --line:#e1e0d9; --border:rgba(11,11,11,.10); --bar:#2a78d6; --bar-track:#e1e0d9;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --cold:#898781;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+      --line:#2c2c2a; --border:rgba(255,255,255,.10); --bar:#3987e5; --bar-track:#2c2c2a;
+    }
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--page); color:var(--ink); padding:24px; }
+  header { display:flex; align-items:baseline; gap:12px; margin-bottom:18px; }
+  header h1 { font-size:1.25rem; }
+  #live { font-size:.8rem; color:var(--ink2); }
+  #live::before { content:"●"; color:var(--good); margin-right:5px; }
+  #live.off::before { color:var(--serious); }
+
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:18px; }
+  .tile { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+  .tile .label { font-size:.78rem; color:var(--ink2); }
+  .tile .value { font-size:1.7rem; font-weight:700; margin-top:2px; }
+
+  .grid { display:grid; grid-template-columns:minmax(0,2fr) minmax(260px,1fr); gap:16px; align-items:start; }
+  @media (max-width:900px){ .grid { grid-template-columns:1fr; } }
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .panel h2 { font-size:.95rem; margin-bottom:10px; }
+
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th { text-align:left; color:var(--muted); font-size:.74rem; text-transform:uppercase; letter-spacing:.05em;
+       padding:6px 10px; border-bottom:1px solid var(--line); }
+  td { padding:9px 10px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  tr.lead-row { cursor:pointer; }
+  tr.lead-row:hover td { background:color-mix(in srgb, var(--ink) 4%, transparent); }
+  tr.flash td { animation:flash 1.2s ease-out; }
+  @keyframes flash { from { background:color-mix(in srgb, var(--bar) 18%, transparent);} to { background:transparent; } }
+
+  .scorecell { display:flex; align-items:center; gap:8px; min-width:130px; }
+  .scorebar { flex:1; height:6px; border-radius:4px; background:var(--bar-track); overflow:hidden; }
+  .scorebar i { display:block; height:100%; border-radius:4px; background:var(--bar); }
+  .score { font-weight:700; width:2.2em; text-align:right; }
+
+  .badge { display:inline-flex; align-items:center; gap:5px; font-size:.76rem; font-weight:600;
+           border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--ink2); }
+  .badge::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--cold); }
+  .badge.ready::before { background:var(--good); }
+  .badge.hot::before { background:var(--serious); }
+  .badge.warm::before { background:var(--warning); }
+
+  #feed { list-style:none; max-height:520px; overflow-y:auto; }
+  #feed li { padding:8px 2px; border-bottom:1px solid var(--line); font-size:.85rem; }
+  #feed .who { font-weight:600; }
+  #feed .when { color:var(--muted); font-size:.76rem; }
+  #feed li.notif { border-left:3px solid var(--good); padding-left:8px; white-space:pre-line; }
+
+  #drawer { position:fixed; top:0; right:-420px; width:400px; max-width:92vw; height:100vh; background:var(--surface);
+            border-left:1px solid var(--border); padding:20px; overflow-y:auto; transition:right .2s ease; z-index:10; }
+  #drawer.open { right:0; box-shadow:-12px 0 32px rgba(0,0,0,.15); }
+  #drawer .close { float:right; background:none; border:none; font-size:1.2rem; color:var(--ink2); cursor:pointer; }
+  #drawer h3 { margin-bottom:2px; }
+  #drawer .meta { color:var(--ink2); font-size:.85rem; margin-bottom:14px; }
+  .timeline { list-style:none; margin-top:10px; }
+  .timeline li { padding:7px 0 7px 14px; border-left:2px solid var(--line); font-size:.85rem; }
+  .timeline .when { color:var(--muted); font-size:.75rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Leads-Track · Sales Dashboard</h1>
+  <span id="live">live</span>
+</header>
+
+<div class="tiles">
+  <div class="tile"><div class="label">Total leads</div><div class="value" id="t-total">–</div></div>
+  <div class="tile"><div class="label">Ready to call</div><div class="value" id="t-ready">–</div></div>
+  <div class="tile"><div class="label">Hot</div><div class="value" id="t-hot">–</div></div>
+  <div class="tile"><div class="label">Warm</div><div class="value" id="t-warm">–</div></div>
+  <div class="tile"><div class="label">Avg intent score</div><div class="value" id="t-avg">–</div></div>
+  <div class="tile"><div class="label">Events today</div><div class="value" id="t-events">–</div></div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Leads by intent</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Lead</th><th>Project</th><th>Source</th><th>Intent score</th><th>Tier</th><th>Visits</th><th>Last seen</th></tr></thead>
+        <tbody id="leads"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Live activity</h2>
+    <ul id="feed"></ul>
+  </div>
+</div>
+
+<aside id="drawer">
+  <button class="close" onclick="closeDrawer()">✕</button>
+  <h3 id="d-name"></h3>
+  <div class="meta" id="d-meta"></div>
+  <ul class="timeline" id="d-timeline"></ul>
+</aside>
+
+<script src="/dashboard/app.js"></script>
+</body>
+</html>
